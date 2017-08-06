@@ -1,0 +1,175 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "cloudinit": {
+            "type": "String",
+            "defaultValue": "I2Nsb3VkLWNvbmZpZwo="
+        },
+        "adminuser": {
+            "type": "String",
+            "defaultValue": "notadmin"
+        },
+        "ssh_key_data": {
+            "type": "String",
+            "defaultValue": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDA0j1TZEYW9skmIo2nI2kNWGU+nxEVBL4jl/zbs3B5/SIi7OvLnwuQczUrRlmU7fMBC+OD2KdXJnizpJJKueVEKLuk0yLbn1Ip8E6jRBNwWz7hPpeuc3vbvBjTbKAbgqnWCtJlcnob+lYc/0u7CyMxyGyDs7+bbdatP8pjeUCktPBvlxO9xTbNRnPKA7dupWHpOlpn6dtULLMNQWZlApWKE3DM4th9C01SWIvmL6eUKfywQp5DlN/Gihjg9YdcIHb7rxDBv9F/cx5uwe2Ooc42qrc9RKrTI/YeHBNahkPonw3cI2k8AKWy6SlfvaMyBuUavvdd3DZwidCWqQbelboj rojkov@hpenvy"
+        }
+    },
+    "variables": {
+	"namespace": "[resourceGroup().name]",
+	"nsg_name": "[concat(variables('namespace'), '_nsg')]",
+	"vnet_name": "[concat(variables('namespace'), '_vnet')]",
+	"publicip_name": "[concat(variables('namespace'), '_ip')]",
+	"nic_name": "[concat(variables('namespace'), '_nic')]",
+        "ssh_key_path": "[concat('/home/', parameters('adminuser'), '/.ssh/authorized_keys')]"
+    },
+    "resources": [
+	{
+	    "comments": "Network Security Group for worker's network",
+	    "name": "[variables('nsg_name')]",
+	    "type": "Microsoft.Network/networkSecurityGroups",
+	    "apiVersion": "2017-03-01",
+	    "location": "[resourceGroup().location]",
+	    "properties": {
+		"securityRules": [
+		    {
+			"name": "AllowSSH",
+			"properties": {
+			    "protocol": "Tcp",
+			    "sourcePortRange": "*",
+			    "destinationPortRange": "22",
+			    "sourceAddressPrefix": "*",
+			    "destinationAddressPrefix": "*",
+			    "access": "Allow",
+			    "priority": 400,
+			    "direction": "Inbound"
+			}
+		    }
+		]
+	    }
+	},
+	{
+	    "comments": "Virtual network for a worker",
+	    "name": "[variables('vnet_name')]",
+	    "type": "Microsoft.Network/virtualNetworks",
+	    "apiVersion": "2017-03-01",
+	    "location": "[resourceGroup().location]",
+	    "properties": {
+		"addressSpace": {
+		    "addressPrefixes": [
+			"10.0.0.0/16"
+		    ]
+		},
+		"subnets": [
+		    {
+			"name": "subnet1",
+			"properties": {
+			    "addressPrefix": "10.0.0.0/24"
+			}
+		    }
+		]
+	    }
+	},
+	{
+	    "comments": "Public IP for a worker",
+	    "name": "[variables('publicip_name')]",
+	    "type": "Microsoft.Network/publicIPAddresses",
+	    "apiVersion": "2017-03-01",
+	    "location": "[resourceGroup().location]",
+	    "properties": {
+		"publicIPAllocationMethod": "Dynamic",
+		"publicIPAddressVersion": "IPv4"
+	    }
+	},
+	{
+	    "comments": "Network interface for a worker",
+	    "name": "[variables('nic_name')]",
+	    "type": "Microsoft.Network/networkInterfaces",
+	    "apiVersion": "2017-03-01",
+	    "location": "[resourceGroup().location]",
+	    "properties": {
+		"networkSecurityGroup": {
+		    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsg_name'))]"
+		},
+		"ipConfigurations": [
+		    {
+			"name": "[concat(variables('namespace'), '_ipconfig')]",
+			"properties": {
+			    "privateIPAllocationMethod": "Dynamic",
+			    "subnet": {
+				"id": "[concat(resourceId('Microsoft.Network/virtualNetworks', variables('vnet_name')), '/subnets/subnet1')]"
+			    },
+			    "publicIPAddress": {
+				"id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicip_name'))]"
+			    },
+			    "primary": true
+			}
+		    }
+		]
+	    },
+	    "dependsOn": [
+		"[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsg_name'))]",
+		"[resourceId('Microsoft.Network/virtualNetworks', variables('vnet_name'))]",
+		"[resourceId('Microsoft.Network/publicIPAddresses', variables('publicip_name'))]"
+	    ]
+	},
+	{
+	    "comments": "Worker instance",
+	    "name": "[resourceGroup().name]",
+	    "type": "Microsoft.Compute/virtualMachines",
+	    "apiVersion": "2017-03-30",
+	    "location": "[resourceGroup().location]",
+	    "properties": {
+		"hardwareProfile": {
+		    "vmSize": "Standard_A2m_v2"
+		},
+		"storageProfile": {
+		    "imageReference": {
+			"publisher": "Canonical",
+			"offer": "UbuntuServer",
+			"sku": "16.04-LTS",
+			"version": "latest"
+		    },
+		    "osDisk": {
+			"createOption": "fromImage"
+		    },
+		    "dataDisks": [
+			{
+			    "lun": 0,
+			    "diskSizeGB": 170,
+			    "createOption": "empty"
+			}
+		    ]
+		},
+		"osProfile": {
+		    "computerName": "[resourceGroup().name]",
+		    "adminUsername": "[parameters('adminuser')]",
+                    "adminPassword": "uiefvtyv6$$WE",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": false,
+                        "ssh": {
+                            "publicKeys": [
+                                {
+                                    "path": "[variables('ssh_key_path')]",
+                                    "keyData": "[parameters('ssh_key_data')]"
+                                }
+                            ]
+                        }
+                    },
+                    "customData": "[parameters('cloudinit')]"
+		},
+		"networkProfile": {
+		    "networkInterfaces": [
+			{
+			    "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nic_name'))]",
+			    "primary": true
+			}
+		    ]
+		}
+	    },
+	    "dependsOn": [
+		"[resourceId('Microsoft.Network/networkInterfaces', variables('nic_name'))]"
+	    ]
+	}
+    ]
+}

@@ -1,0 +1,12 @@
+{
+  "bindings": [
+    {
+      "name": "queueitem",
+      "type": "queueTrigger",
+      "direction": "in",
+      "queueName": "buildresults",
+      "connection": "YottaCIDataStorage"
+    }
+  ],
+  "disabled": false
+}

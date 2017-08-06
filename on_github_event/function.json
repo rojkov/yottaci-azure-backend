@@ -1,0 +1,12 @@
+{
+  "bindings": [
+    {
+      "name": "queueitem",
+      "type": "queueTrigger",
+      "direction": "in",
+      "queueName": "gitupdates",
+      "connection": "YottaCIDataStorage"
+    }
+  ],
+  "disabled": false
+}

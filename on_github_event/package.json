@@ -1,0 +1,15 @@
+{
+  "main": "index",
+  "name": "on_github_event",
+  "version": "0.0.1",
+  "dependencies": {
+    "moniker": "^0.1.2"
+  },
+  "devDependencies": {
+    "mocha": "^3.5.0",
+    "sinon": "^3.2.1"
+  },
+  "scripts": {
+    "test": "mocha"
+  }
+}

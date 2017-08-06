@@ -1,0 +1,55 @@
+#cloud-config
+packages:
+ - binutils
+ - diffstat
+ - chrpath
+ - g++
+ - make
+ - texinfo
+ - python3-lockfile
+ - python3-pip
+users:
+ - name: cibot
+   gecos: CI bot
+   lock_passwd: true
+   homedir: /data/cibot
+ - name: rojkov
+   gecos: Dmitry Rozhkov
+   sudo: ['ALL=(ALL) NOPASSWD:ALL']
+   groups: sudo
+   shell: /bin/bash
+   lock_passwd: true
+   ssh-authorized-keys:
+    - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDA0j1TZEYW9skmIo2nI2kNWGU+nxEVBL4jl/zbs3B5/SIi7OvLnwuQczUrRlmU7fMBC+OD2KdXJnizpJJKueVEKLuk0yLbn1Ip8E6jRBNwWz7hPpeuc3vbvBjTbKAbgqnWCtJlcnob+lYc/0u7CyMxyGyDs7+bbdatP8pjeUCktPBvlxO9xTbNRnPKA7dupWHpOlpn6dtULLMNQWZlApWKE3DM4th9C01SWIvmL6eUKfywQp5DlN/Gihjg9YdcIHb7rxDBv9F/cx5uwe2Ooc42qrc9RKrTI/YeHBNahkPonw3cI2k8AKWy6SlfvaMyBuUavvdd3DZwidCWqQbelboj rojkov@hpenvy
+disk_setup:
+  /dev/sdc:
+    table_type: mbr
+    layout:
+      - [ 19, 82 ]
+      - [ 150, 83 ]
+    overwrite: False
+fs_setup:
+  - label: data0
+    filesystem: ext2
+    device: /dev/sdc2
+  - label: swap
+    filesystem: swap
+    device: /dev/sdc1
+mounts:
+ - [ //%STORAGE_NAME%.file.core.windows.net/bbcache, /fileshare, cifs, "vers=3.0,username=%STORAGE_USERNAME%,password=%STORAGE_PASSWORD%,dir_mode=0777,file_mode=0777" ]
+ - [ //%FUNCSTORAGE_NAME%.file.core.windows.net/%FUNCSTORAGE_SHARE%, /funcshare, cifs, "vers=3.0,username=%FUNCSTORAGE_USERNAME%,password=%FUNCSTORAGE_PASSWORD%,dir_mode=0777,file_mode=0777" ]
+ - [ /dev/sdc1, swap, swap, defaults ]
+ - [ /dev/sdc2, /data, ext2, defaults ]
+runcmd:
+ - [ mount, /fileshare, -o, "uid=cibot,forceuid,gid=cibot,forcegid" ]
+ - [ pip3, install, azure-storage ]
+ - [ pip3, install, PyGithub ]
+ - [ pip3, install, jwt ]
+ - [ pip3, install, PyYAML ]
+ - [ su, "-c", "python3 /funcshare/site/wwwroot/scripts/buildit.py", "-", cibot ]
+write_files:
+ - encoding: b64
+   content: %TASKDATA_PLACEHOLDER%
+   owner: root:root
+   path: /etc/taskdata.json
+   permissions: '0444'
